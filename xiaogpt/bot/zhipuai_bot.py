@@ -60,6 +60,9 @@ class ZhiPuAiBot(ChatHistoryMixin, BaseBot):
             api_key=config.zhipu_api_key
         )
 
+    def has_history(self) -> bool:
+        return super().has_history()
+
 
 if __name__ == '__main__':
     import asyncio
