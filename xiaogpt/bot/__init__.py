@@ -17,7 +17,7 @@ BOTS: dict[str, type[BaseBot]] = {
     "glm": GLMBot,
     "bard": BardBot,
     "langchain": LangChainBot,
-    "zhipuai": ZhiPuAiBot
+    "zhipuai": ZhiPuAiBot,
 }
 
 
