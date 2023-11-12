@@ -378,6 +378,7 @@ class MiGPT:
 
     async def ask_gpt(self, query):
         if not self.config.stream:
+            print('ask gpt: do not use stream')
             async with ClientSession(trust_env=True) as session:
                 openai.aiosession.set(session)
                 if self.config.bot == "glm":
@@ -388,6 +389,7 @@ class MiGPT:
                 yield message
                 return
 
+        print('ask gpt: use stream')
         async def collect_stream(queue):
             async with ClientSession(trust_env=True) as session:
                 openai.aiosession.set(session)
@@ -487,8 +489,10 @@ class MiGPT:
 
                 print("-" * 20)
                 print("问题：" + query + "？")
-                if not self.chatbot.has_history():
-                    query = f"{query}，{self.config.prompt}"
+                # if not self.chatbot.has_history():
+                #     query = f"{query}，{self.config.prompt}"
+                # 总是增加回答限制字数
+                query = f"{query}，{self.config.prompt}"
                 if self.config.mute_xiaoai:
                     await self.stop_if_xiaoai_is_playing()
                 else:
@@ -502,10 +506,11 @@ class MiGPT:
                     )
                 except IndexError:
                     print("小爱没回")
-                print(f"以下是 {ask_name} 的回答: ", end="")
+                print(f"以下是 {ask_name} 的回答: ", end="\n")
                 try:
                     if not self.config.enable_edge_tts:
                         async for message in self.ask_gpt(query):
+                            print(f'tts, message: {message}')
                             await self.do_tts(message, wait_for_finish=True)
                     else:
                         tts_lang = (
@@ -514,7 +519,7 @@ class MiGPT:
                         )
                         # tts with edge_tts
                         await self.edge_tts(self.ask_gpt(query), tts_lang)
-                    print("回答完毕")
+                    print("tts: 回答完毕")
                 except Exception as e:
                     print(f"{ask_name} 回答出错 {str(e)}")
                 if self.in_conversation:

@@ -6,6 +6,7 @@ import zhipuai
 
 from xiaogpt.bot.base_bot import BaseBot, ChatHistoryMixin
 from xiaogpt.config import Config
+from xiaogpt.utils import split_sentences
 
 
 class ZhiPuAiBot(ChatHistoryMixin, BaseBot):
@@ -26,7 +27,7 @@ class ZhiPuAiBot(ChatHistoryMixin, BaseBot):
         dialog.append({"role": "user", "content": query})
         # 调用参数，默认参数X自定义参数
         kwargs = {**self.default_options, **options}
-        print(f"kw: {kwargs}, prompt: {dialog}")
+        print(f"asking zhipuAi, kw: {kwargs}, prompt: {dialog}")
 
         try:
             response = zhipuai.model_api.sse_invoke(
@@ -41,7 +42,7 @@ class ZhiPuAiBot(ChatHistoryMixin, BaseBot):
                     print(event.data, end="")
                 elif event.event == "finish":
                     this_ans += event.data
-                    print(f'this round end: {event.meta}')
+                    print(f'this round end: {event.meta}; \n\tthis_ans: {this_ans}')
                 else:
                     print(event.data, end="")
         except Exception as e:
@@ -52,7 +53,37 @@ class ZhiPuAiBot(ChatHistoryMixin, BaseBot):
         return this_ans
 
     async def ask_stream(self, query: str, **options: Any) -> AsyncGenerator[str, None]:
-        raise Exception("Zhipuai do not support stream")
+        # 获取历史对话, 增加当前提示词
+        dialog = self.get_messages()
+        dialog.append({"role": "user", "content": query})
+        # 调用参数，默认参数X自定义参数
+        kwargs = {**self.default_options, **options}
+        print(f"asking zhipuAi, kw: {kwargs}, prompt: {dialog}")
+
+        try:
+            response = zhipuai.model_api.sse_invoke(
+                prompt=dialog,
+                **kwargs
+            )
+        except Exception as e:
+            print('ask zhipuAI exception', e)
+            return
+
+        async def text_gen():
+            for event in response.events():
+                if event.event != "add":
+                    continue
+                print(event.data, end="")
+                yield event.data
+
+        message = ""
+        try:
+            async for sentence in split_sentences(text_gen()):
+                message += sentence
+                yield sentence
+        finally:
+            print(f'add history message')
+            self.add_message(query, message)
 
     @classmethod
     def from_config(cls, config: Config):
@@ -82,8 +113,11 @@ if __name__ == '__main__':
                 print("程序已退出。")
                 break
             elif user_input:
-                ans = await bot.ask(user_input)
-                print(f'bot ans: {ans}')
+                # ans = await bot.ask(user_input)
+                # print(f'bot ans: {ans}')
+                print('bot ans: ', end='')
+                async for msg in bot.ask_stream(user_input):
+                    print(msg, end='')
             else:
                 print('无效输入，请重新输入')
 
